@@ -1,8 +1,8 @@
-package com.adobe.printservice.repository.projection;
+package com.adobe.printservice.dto;
 
 import com.adobe.printservice.model.JobStatus;
 
-public record JobStatusCount(
+public record JobStatusCountDTO(
         JobStatus status,
         long total
 ) {

@@ -1,8 +1,8 @@
 package com.adobe.printservice.repository;
 
+import com.adobe.printservice.dto.JobStatusCountDTO;
 import com.adobe.printservice.model.Job;
 import com.adobe.printservice.model.JobStatus;
-import com.adobe.printservice.repository.projection.JobStatusCount;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -15,10 +15,8 @@ import java.util.Optional;
 public interface JobRepository extends JpaRepository<Job, String> {
     List<Job> findByStatus(JobStatus status);
 
-    long countByStatus(JobStatus status);
-
-    @Query("SELECT new com.adobe.printservice.repository.projection.JobStatusCount(j.status, COUNT(j)) FROM Job j GROUP BY j.status")
-    List<JobStatusCount> countJobsByStatus();
+    @Query("SELECT j.status, COUNT(j) FROM Job j GROUP BY j.status")
+    List<JobStatusCountDTO> countJobsByStatus();
 
     long countByAttemptsGreaterThan(int attempts);
 

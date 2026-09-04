@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Claims queued jobs and updates their status after each render attempt.
+ */
 @Service
 public class JobQueueService {
 

@@ -10,6 +10,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
+/**
+ * Looks for queued jobs and sends them to the worker thread pool.
+ */
 @Component
 public class JobWorker {
 

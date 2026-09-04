@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
+/**
+ * Checks whether the database and background worker are available.
+ */
 @Service
 public class HealthService {
 

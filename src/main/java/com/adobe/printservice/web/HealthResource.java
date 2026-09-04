@@ -3,6 +3,7 @@ package com.adobe.printservice.web;
 import com.adobe.printservice.dto.HealthResponseDTO;
 import com.adobe.printservice.model.HealthStatus;
 import com.adobe.printservice.service.HealthService;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,11 +22,13 @@ public class HealthResource {
         this.healthService = healthService;
     }
 
+    @Operation(summary = "Check service liveness")
     @GetMapping("/liveness")
     public Map<String, HealthStatus> liveness() {
         return Map.of("status", HealthStatus.UP);
     }
 
+    @Operation(summary = "Check service readiness")
     @GetMapping("/readiness")
     public ResponseEntity<HealthResponseDTO> readiness() {
         HealthResponseDTO health = healthService.readiness();

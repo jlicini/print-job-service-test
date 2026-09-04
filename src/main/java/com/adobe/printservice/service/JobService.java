@@ -1,8 +1,7 @@
 package com.adobe.printservice.service;
 
-import com.adobe.printservice.exception.JobFailedException;
+import com.adobe.printservice.exception.JobStateConflictException;
 import com.adobe.printservice.exception.JobNotFoundException;
-import com.adobe.printservice.exception.JobResultNotAvailableException;
 import com.adobe.printservice.exception.TemplateNotFoundException;
 import com.adobe.printservice.mapper.JobMapper;
 import com.adobe.printservice.model.Job;
@@ -64,12 +63,12 @@ public class JobService {
         Job job = jobRepository.findById(id)
                 .orElseThrow(() -> new JobNotFoundException(id));
 
-        if (job.getStatus() == JobStatus.FAILED) {
-            throw new JobFailedException("Job failed: " + job.getErrorMessage());
-        }
-
         if (job.getStatus() != JobStatus.DONE) {
-            throw new JobResultNotAvailableException();
+            throw JobStateConflictException.cannotFetchResult(
+                    job.getId(),
+                    job.getStatus(),
+                    job.getErrorMessage()
+            );
         }
 
         return job.getResultContent();

@@ -1,8 +1,7 @@
 package com.adobe.printservice.web.error;
 
-import com.adobe.printservice.exception.JobFailedException;
+import com.adobe.printservice.exception.JobStateConflictException;
 import com.adobe.printservice.exception.JobNotFoundException;
-import com.adobe.printservice.exception.JobResultNotAvailableException;
 import com.adobe.printservice.exception.TemplateNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,17 +18,10 @@ public class GlobalExceptionHandler {
                 .body(ex.getMessage());
     }
 
-    @ExceptionHandler(JobFailedException.class)
-    public ResponseEntity<String> handleJobFailed(JobFailedException ex) {
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(ex.getMessage());
-    }
-
-    @ExceptionHandler(JobResultNotAvailableException.class)
-    public ResponseEntity<String> handleResultNotAvailable(
-            JobResultNotAvailableException ex) {
-
+    @ExceptionHandler(JobStateConflictException.class)
+    public ResponseEntity<String> handleJobStateConflict(
+            JobStateConflictException ex
+    ) {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(ex.getMessage());

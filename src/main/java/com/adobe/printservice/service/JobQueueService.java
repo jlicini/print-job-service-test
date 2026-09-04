@@ -6,11 +6,12 @@ import com.adobe.printservice.model.JobAttemptResult;
 import com.adobe.printservice.model.JobStatus;
 import com.adobe.printservice.repository.JobRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Optional;
+import java.util.List;
 
 @Service
 public class JobQueueService {
@@ -27,15 +28,20 @@ public class JobQueueService {
     }
 
     @Transactional
-    public Optional<Job> claimNextJob() {
-        return jobRepository.findFirstByStatusOrderByCreatedAtAsc(JobStatus.QUEUED)
-                .map(job -> {
-                    job.setStatus(JobStatus.PROCESSING);
-                    job.setAttempts(job.getAttempts() + 1);
-                    job.setErrorMessage(null);
-                    job.setUpdatedAt(Instant.now());
-                    return job;
-                });
+    public List<Job> claimNextJobs(int limit) {
+        List<Job> jobs = jobRepository.findByStatusOrderByCreatedAtAsc(
+                JobStatus.QUEUED,
+                PageRequest.of(0, limit)
+        );
+
+        jobs.forEach(job -> {
+            job.setStatus(JobStatus.PROCESSING);
+            job.setAttempts(job.getAttempts() + 1);
+            job.setErrorMessage(null);
+            job.setUpdatedAt(Instant.now());
+        });
+
+        return jobs;
     }
 
     @Transactional

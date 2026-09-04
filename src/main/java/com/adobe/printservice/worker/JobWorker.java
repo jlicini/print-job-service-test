@@ -7,6 +7,7 @@ import com.adobe.printservice.service.JobRenderService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -16,25 +17,34 @@ public class JobWorker {
 
     private final JobQueueService jobQueueService;
     private final JobRenderService jobRenderService;
+    private final ThreadPoolTaskExecutor jobTaskExecutor;
 
     public JobWorker(
             JobQueueService jobQueueService,
-            JobRenderService jobRenderService
+            JobRenderService jobRenderService,
+            ThreadPoolTaskExecutor jobTaskExecutor
     ) {
         this.jobQueueService = jobQueueService;
         this.jobRenderService = jobRenderService;
+        this.jobTaskExecutor = jobTaskExecutor;
     }
 
     @Scheduled(
             fixedDelayString = "${jobs.worker.poll-delay-ms}",
             initialDelayString = "1000"
     )
-    public void processNextJob() {
-        jobQueueService.claimNextJob().ifPresent(this::process);
+    public void processJobs() {
+        jobQueueService.claimNextJobs(jobTaskExecutor.getMaxPoolSize())
+                .forEach(job -> jobTaskExecutor.execute(() -> process(job)));
     }
 
     private void process(Job job) {
-        log.debug("Processing job {} (attempt {})", job.getId(), job.getAttempts());
+        log.debug(
+                "Thread {} processing job {} (attempt {})",
+                Thread.currentThread().getName(),
+                job.getId(),
+                job.getAttempts()
+        );
 
         JobAttemptResult result = jobRenderService.render();
         jobQueueService.completeAttempt(job.getId(), result);

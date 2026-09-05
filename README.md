@@ -110,3 +110,38 @@ Listing available templates
 ```shell
 $ curl localhost:8080/templates
 ```
+
+## Design Decisions
+
+### Queue / Worker
+
+PostgreSQL is both the system of record and a durable queue: jobs are stored as `QUEUED` before the
+API responds. A worker scheduled with `@Scheduled` polls at the interval configured by
+`jobs.worker.poll-delay-ms` and dispatches jobs to a configurable `ThreadPoolTaskExecutor`. Jobs are
+claimed transactionally with a pessimistic lock, preventing multiple application instances from
+processing the same job; at a larger scale, a message broker would provide more efficient delivery
+and back-pressure.
+
+### Retry Policy
+
+Each claim increments the attempt counter; success moves the job to `DONE`, while a transient
+failure returns it to `QUEUED`. Retries are limited by `jobs.worker.max-attempts` (three by default),
+after which the job is marked `FAILED` and the error reason is stored. Retries use the normal
+polling interval; production workloads would benefit from exponential backoff and jitter.
+
+### Readiness
+
+`GET /health/readiness` verifies both database connectivity and that the background worker executor
+is operational, since accepted jobs must be persisted and processed. It returns `200 OK` when both
+checks pass or `503 Service Unavailable` with the failed component otherwise. Liveness is kept
+separate so a temporary dependency failure stops traffic without restarting the application.
+
+### Kubernetes
+
+The optional Minikube setup runs two application replicas behind a Kubernetes Service and one
+PostgreSQL instance backed by a persistent volume claim. Both application replicas share the same
+database; the transactional locking described above prevents them from claiming the same job.
+From the `scripts` directory, run `./start-minikube.sh` to deploy the stack and
+`./stop-minikube.sh` to stop the local cluster.
+
+![Kubernetes architecture](docs/kubernetes-architecture.png)

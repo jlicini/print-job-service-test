@@ -111,6 +111,10 @@ Listing available templates
 $ curl localhost:8080/templates
 ```
 
+Interactive API documentation is available through Swagger UI at
+[http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html). It can be used to
+inspect and test every endpoint.
+
 ## Design Decisions
 
 ### Queue / Worker
@@ -143,5 +147,28 @@ PostgreSQL instance backed by a persistent volume claim. Both application replic
 database; the transactional locking described above prevents them from claiming the same job.
 From the `scripts` directory, run `./start-minikube.sh` to deploy the stack and
 `./stop-minikube.sh` to stop the local cluster.
+
+#### Testing the Kubernetes deployment
+
+Verify the pods and expose the application:
+
+```bash
+kubectl get pods
+minikube service print-job-service --url
+```
+
+On Windows with the Docker driver, keep the second command running and open
+`<returned-url>/swagger-ui/index.html`. To access PostgreSQL locally, run:
+
+```bash
+kubectl port-forward service/postgres 15432:5432
+```
+
+Connect to `localhost:15432` using database, username, and password `printservice`. After submitting
+jobs through Swagger, follow both workers with:
+
+```bash
+kubectl logs -f -l app=print-job-service --prefix=true
+```
 
 ![Kubernetes architecture](docs/kubernetes-architecture.png)

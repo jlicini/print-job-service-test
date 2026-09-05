@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: print-job-service
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: print-job-service

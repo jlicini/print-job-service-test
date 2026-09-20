@@ -1,6 +1,6 @@
 package com.adobe.printservice.web;
 
-import com.adobe.printservice.service.JobService;
+import com.adobe.printservice.service.job.JobService;
 import com.adobe.printservice.dto.JobRequestDTO;
 import com.adobe.printservice.dto.JobResponseDTO;
 import com.adobe.printservice.model.JobStatus;

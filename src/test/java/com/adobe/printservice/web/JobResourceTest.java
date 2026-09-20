@@ -146,11 +146,11 @@ class JobResourceTest {
     }
 
     @Test
-    void getJobResult_queuedJob_returns409() throws Exception {
+    void getJobResult_queuedJob_returns404() throws Exception {
         mockMvc.perform(get("/jobs/{id}/result", queuedJob.getId()))
-                .andExpect(status().isConflict())
+                .andExpect(status().isNotFound())
                 .andExpect(content().string(
-                        "Job result is not available while job %s is in QUEUED state"
+                        "Job does not exist: %s"
                                 .formatted(queuedJob.getId())
                 ));
     }

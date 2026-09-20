@@ -2,7 +2,7 @@ package com.adobe.printservice.worker;
 
 import com.adobe.printservice.model.Job;
 import com.adobe.printservice.model.JobAttemptResult;
-import com.adobe.printservice.service.JobWorkerService;
+import com.adobe.printservice.service.job.JobWorkerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;

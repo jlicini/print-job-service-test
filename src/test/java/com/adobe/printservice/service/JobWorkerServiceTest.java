@@ -1,16 +1,18 @@
 package com.adobe.printservice.service;
 
 import com.adobe.printservice.config.JobWorkerProperties;
-import com.adobe.printservice.exception.JobStateConflictException;
+import com.adobe.printservice.exception.JobNotFoundException;
 import com.adobe.printservice.model.Job;
 import com.adobe.printservice.model.JobAttemptResult;
 import com.adobe.printservice.model.JobStatus;
 import com.adobe.printservice.repository.JobRepository;
+import com.adobe.printservice.service.job.JobWorkerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.Duration;
@@ -36,6 +38,9 @@ class JobWorkerServiceTest {
     @Mock
     private JobRepository jobRepository;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private JobWorkerService jobWorkerService;
     private Job queuedJob;
     private Job processingJob;
@@ -49,7 +54,8 @@ class JobWorkerServiceTest {
 
         jobWorkerService = new JobWorkerService(
                 jobRepository,
-                properties
+                properties,
+                eventPublisher
         );
 
         queuedJob = new Job();
@@ -213,7 +219,7 @@ class JobWorkerServiceTest {
     }
 
     @Test
-    void completeAttempt_repositoryReturnsEmptyOptional_throwsStateConflict() {
+    void completeAttempt_repositoryReturnsEmptyOptional_throwsJobNotFound() {
         String jobId = "job-123";
         int attempt = 1;
         when(jobRepository.findByIdAndStatusAndAttempts(
@@ -223,8 +229,8 @@ class JobWorkerServiceTest {
         ))
                 .thenReturn(Optional.empty());
 
-        JobStateConflictException exception = assertThrows(
-                JobStateConflictException.class,
+        JobNotFoundException exception = assertThrows(
+                JobNotFoundException.class,
                 () -> jobWorkerService.completeAttempt(
                         jobId,
                         attempt,
@@ -233,7 +239,7 @@ class JobWorkerServiceTest {
         );
 
         assertEquals(
-                "Job job-123 must be in PROCESSING state",
+                "Job does not exist: job-123",
                 exception.getMessage()
         );
         verify(jobRepository, times(1))

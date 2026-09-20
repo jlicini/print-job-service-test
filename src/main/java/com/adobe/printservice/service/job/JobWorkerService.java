@@ -1,11 +1,13 @@
-package com.adobe.printservice.service;
+package com.adobe.printservice.service.job;
 
 import com.adobe.printservice.config.JobWorkerProperties;
-import com.adobe.printservice.exception.JobStateConflictException;
+import com.adobe.printservice.event.JobStatusChangedEvent;
+import com.adobe.printservice.exception.JobNotFoundException;
 import com.adobe.printservice.model.Job;
 import com.adobe.printservice.model.JobAttemptResult;
 import com.adobe.printservice.model.JobStatus;
 import com.adobe.printservice.repository.JobRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +26,18 @@ public class JobWorkerService {
     private final int maxAttempts;
     private final Duration processingTimeout;
     private final Duration retryBackoff;
+    private final ApplicationEventPublisher eventPublisher;
 
     public JobWorkerService(
             JobRepository jobRepository,
-            JobWorkerProperties properties
+            JobWorkerProperties properties,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.jobRepository = jobRepository;
         this.maxAttempts = properties.getMaxAttempts();
         this.processingTimeout = properties.getProcessingTimeout();
         this.retryBackoff = properties.getRetryBackoff();
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -46,6 +51,7 @@ public class JobWorkerService {
                 );
 
         jobs.forEach(job -> {
+            JobStatus previousStatus = job.getStatus();
             job.setUpdatedAt(now);
 
             if (job.getAttempts() >= maxAttempts) {
@@ -57,6 +63,7 @@ public class JobWorkerService {
                 job.setErrorMessage(null);
                 job.setScheduledAt(scheduledAt(now, job.getAttempts()));
             }
+            publishStatusChanged(previousStatus, job.getStatus(), false, false);
         });
 
         return jobs.size();
@@ -72,11 +79,14 @@ public class JobWorkerService {
         );
 
         jobs.forEach(job -> {
+            int previousAttempts = job.getAttempts();
+            JobStatus previousStatus = job.getStatus();
             job.setStatus(JobStatus.PROCESSING);
-            job.setAttempts(job.getAttempts() + 1);
+            job.setAttempts(previousAttempts + 1);
             job.setErrorMessage(null);
             job.setScheduledAt(now.plus(processingTimeout));
             job.setUpdatedAt(now);
+            publishStatusChanged(previousStatus, job.getStatus(), true, previousAttempts == 1);
         });
 
         return jobs;
@@ -85,6 +95,7 @@ public class JobWorkerService {
     @Transactional
     public void completeAttempt(String jobId, int attempt, JobAttemptResult result) {
         Job job = findProcessingJob(jobId, attempt);
+        JobStatus previousStatus = job.getStatus();
         Instant now = Instant.now();
         job.setUpdatedAt(now);
 
@@ -102,6 +113,21 @@ public class JobWorkerService {
             job.setErrorMessage(null);
             job.setScheduledAt(scheduledAt(now, job.getAttempts()));
         }
+        publishStatusChanged(previousStatus, job.getStatus(), false, false);
+    }
+
+    private void publishStatusChanged(
+            JobStatus previousStatus,
+            JobStatus newStatus,
+            boolean attemptStarted,
+            boolean firstRetry
+    ) {
+        eventPublisher.publishEvent(new JobStatusChangedEvent(
+                previousStatus,
+                newStatus,
+                attemptStarted,
+                firstRetry
+        ));
     }
 
     private Instant scheduledAt(Instant now, int attempts) {
@@ -114,9 +140,6 @@ public class JobWorkerService {
                         JobStatus.PROCESSING,
                         attempt
                 )
-                .orElseThrow(() -> JobStateConflictException.requiresStatus(
-                        jobId,
-                        JobStatus.PROCESSING
-                ));
+                .orElseThrow(() -> new JobNotFoundException(jobId));
     }
 }

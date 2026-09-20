@@ -13,6 +13,7 @@ public record JobResponseDTO(
         int attempts,
         String errorMessage,
         boolean resultAvailable,
+        Instant scheduledAt,
         Instant createdAt,
         Instant updatedAt
 ) {

@@ -24,6 +24,7 @@ public class JobMapper {
                 job.getAttempts(),
                 job.getErrorMessage(),
                 job.getResultContent() != null,
+                job.getScheduledAt(),
                 job.getCreatedAt(),
                 job.getUpdatedAt()
         );

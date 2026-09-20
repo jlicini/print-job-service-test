@@ -1,23 +1,23 @@
-package com.adobe.printservice.service;
+package com.adobe.printservice.worker;
 
+import com.adobe.printservice.config.JobWorkerProperties;
 import com.adobe.printservice.model.JobAttemptResult;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-@Service
-public class JobRenderService {
+@Component
+public class JobRenderer {
 
     private static final long RENDER_DELAY_MS = 500;
     private static final double FINAL_FAILURE_PROBABILITY = 0.10;
 
     private final double attemptFailureProbability;
 
-    public JobRenderService(@Value("${jobs.worker.max-attempts:3}") int maxAttempts) {
+    public JobRenderer(JobWorkerProperties properties) {
         this.attemptFailureProbability = Math.pow(
                 FINAL_FAILURE_PROBABILITY,
-                1.0 / maxAttempts
+                1.0 / properties.getMaxAttempts()
         );
     }
 
@@ -34,7 +34,7 @@ public class JobRenderService {
                 : JobAttemptResult.SUCCESS;
     }
 
-    protected boolean renderFails() {
+    private boolean renderFails() {
         return ThreadLocalRandom.current().nextDouble() < attemptFailureProbability;
     }
 }

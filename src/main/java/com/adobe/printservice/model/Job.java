@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
@@ -14,12 +15,18 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Fields here follow directly from the API contract in the README (submit response, GET
- * /jobs/{id}, GET /jobs/{id}/result). Whether/how you schedule retries is not part of that
- * contract and is not modeled here - that's yours to design.
+ * A durable render job, including its retry schedule and processing lease.
  */
 @Entity
-@Table(name = "job")
+@Table(
+        name = "job",
+        indexes = {
+                @Index(
+                        name = "idx_job_status_scheduled_at",
+                        columnList = "status, scheduled_at, created_at"
+                )
+        }
+)
 public class Job {
 
     @Id
@@ -45,6 +52,9 @@ public class Job {
 
     @Column(name = "result_content", columnDefinition = "TEXT")
     private String resultContent;
+
+    @Column(name = "scheduled_at")
+    private Instant scheduledAt = Instant.now();
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
@@ -106,6 +116,14 @@ public class Job {
 
     public void setResultContent(String resultContent) {
         this.resultContent = resultContent;
+    }
+
+    public Instant getScheduledAt() {
+        return scheduledAt;
+    }
+
+    public void setScheduledAt(Instant scheduledAt) {
+        this.scheduledAt = scheduledAt;
     }
 
     public Instant getCreatedAt() {

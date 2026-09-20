@@ -122,16 +122,22 @@ inspect and test every endpoint.
 PostgreSQL is both the system of record and a durable queue: jobs are stored as `QUEUED` before the
 API responds. A worker scheduled with `@Scheduled` polls at the interval configured by
 `jobs.worker.poll-delay-ms` and dispatches jobs to a configurable `ThreadPoolTaskExecutor`. Jobs are
-claimed transactionally with a pessimistic lock, preventing multiple application instances from
-processing the same job; at a larger scale, a message broker would provide more efficient delivery
-and back-pressure.
+claimed transactionally with a pessimistic `SKIP LOCKED` lock, preventing multiple application
+instances from processing the same job. The `scheduledAt` timestamp means "processable from" while
+a job is `QUEUED` and becomes its ten-minute lease deadline while it is `PROCESSING`. An expired
+claim is recovered by another worker and safely returned to the retry schedule; completion also
+checks the attempt number so a stale worker cannot complete a newer attempt. At a larger scale, a
+message broker would provide more efficient delivery and back-pressure.
 
 ### Retry Policy
 
 Each claim increments the attempt counter; success moves the job to `DONE`, while a transient
 failure returns it to `QUEUED`. Retries are limited by `jobs.worker.max-attempts` (three by default),
-after which the job is marked `FAILED` and the error reason is stored. Retries use the normal
-polling interval; production workloads would benefit from exponential backoff and jitter.
+after which the job is marked `FAILED` and the error reason is stored. Queued retries use a linear
+backoff configured by `jobs.worker.retry-backoff`: with the default ten-minute interval, successive
+retries are delayed by 10, 20, 30 minutes, and so on, up to the configured attempt limit. The
+processing lease is configured separately with `jobs.worker.processing-timeout` and defaults to ten
+minutes.
 
 ### Readiness
 

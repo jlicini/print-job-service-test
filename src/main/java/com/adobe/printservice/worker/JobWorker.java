@@ -2,8 +2,7 @@ package com.adobe.printservice.worker;
 
 import com.adobe.printservice.model.Job;
 import com.adobe.printservice.model.JobAttemptResult;
-import com.adobe.printservice.service.JobQueueService;
-import com.adobe.printservice.service.JobRenderService;
+import com.adobe.printservice.service.JobWorkerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -18,17 +17,17 @@ public class JobWorker {
 
     private static final Logger log = LoggerFactory.getLogger(JobWorker.class);
 
-    private final JobQueueService jobQueueService;
-    private final JobRenderService jobRenderService;
+    private final JobWorkerService jobWorkerService;
+    private final JobRenderer jobRenderer;
     private final ThreadPoolTaskExecutor jobTaskExecutor;
 
     public JobWorker(
-            JobQueueService jobQueueService,
-            JobRenderService jobRenderService,
+            JobWorkerService jobWorkerService,
+            JobRenderer jobRenderer,
             ThreadPoolTaskExecutor jobTaskExecutor
     ) {
-        this.jobQueueService = jobQueueService;
-        this.jobRenderService = jobRenderService;
+        this.jobWorkerService = jobWorkerService;
+        this.jobRenderer = jobRenderer;
         this.jobTaskExecutor = jobTaskExecutor;
     }
 
@@ -37,7 +36,12 @@ public class JobWorker {
             initialDelayString = "1000"
     )
     public void processJobs() {
-        jobQueueService.claimNextJobs(jobTaskExecutor.getMaxPoolSize())
+        int recoveredJobs = jobWorkerService.recoverExpiredJobs(jobTaskExecutor.getMaxPoolSize());
+        if (recoveredJobs > 0) {
+            log.warn("Recovered {} jobs with an expired processing deadline", recoveredJobs);
+        }
+
+        jobWorkerService.claimNextJobs(jobTaskExecutor.getMaxPoolSize())
                 .forEach(job -> jobTaskExecutor.execute(() -> process(job)));
     }
 
@@ -49,8 +53,8 @@ public class JobWorker {
                 job.getAttempts()
         );
 
-        JobAttemptResult result = jobRenderService.render();
-        jobQueueService.completeAttempt(job.getId(), result);
+        JobAttemptResult result = jobRenderer.render();
+        jobWorkerService.completeAttempt(job.getId(), job.getAttempts(), result);
 
         if (result == JobAttemptResult.SUCCESS) {
             log.debug("Job {} completed", job.getId());
